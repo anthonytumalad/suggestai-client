@@ -16,11 +16,13 @@ export function UseAuth() {
   const login = useMutation({
     mutationKey: ["login"],
     mutationFn: (data: LoginCredentials) => AuthService.authenticate(data),
-    onSuccess: async (data: AuthResponse) => {
+    onSuccess: async (data) => {
       setUser(data.user ?? null)
       await router.push("/")
     },
-    onError: (err) => console.error("Login failed:", err),
+    onError: (err) => {
+      console.error("Login failed", err)
+    },
   })
 
   const logout = useMutation({

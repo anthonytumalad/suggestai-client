@@ -1,55 +1,64 @@
 import axios, { AxiosError } from "axios"
 import type { ApiError } from "@/types/api.types"
+import { errorBus } from "./error.bus"
 
-export class ErrorHandler{
+export class ErrorHandler {
+  private static _unauthorizedEmitted = false
+
   static handle(error: unknown) {
-    if (axios.isAxiosError(error)) {
-      this.handleAxiosError(error)
-      return
-    }
+    if (axios.isAxiosError(error))
+      return this.handleAxiosError(error)
+    if (error instanceof Error)
+      return this.emit(error.message, "error")
 
-    if (error instanceof Error) {
-      this.handleGenericError(error)
-      return
-    }
-
-    console.error("Unknown error:", error)
+    this.emit("An unknown error occurred", "error")
   }
 
-  private static handleAxiosError(error: AxiosError<ApiError>) {
+  private static emit(message: string, severity: "success" | "info" | "warn" | "error" = "error") {
+    if (!message) message = "An unknown error occurred"
+    errorBus.emit("api:error", { message, severity })
+  }
+
+  private static handleAxiosError(error: AxiosError) {
     const status = error.response?.status
-    const message = error.response?.data?.message || error.message
+    const data = error.response?.data as ApiError
+
+    let message = error.message
+
+    if (status === 422 && data?.errors) {
+      message = Object.values(data.errors).flat().filter(Boolean).join(", ") || "Validation failed"
+    } else if (data?.message) {
+      message = data.message
+    }
 
     switch (status) {
       case 401:
-        console.warn("Unauthorized — redirecting to login")
-        window.location.href = "/auth/login"
+        if (!this._unauthorizedEmitted) {
+          this._unauthorizedEmitted = true
+          this.emit("Unauthorized — please login again", "error")
+          window.location.href = "/auth/login"
+          setTimeout(() => (this._unauthorizedEmitted = false), 5000)
+        }
         break
 
       case 403:
-        console.error("Forbidden:", message)
-        alert("You don't have permission to do this.")
+        this.emit("You don't have permission to do this.", "error")
         break
 
       case 404:
-        console.error("Not Found:", message)
+        this.emit("Resource not found.", "info")
         break
 
       case 422:
-        console.error("Validation Error:", error.response?.data?.errors)
+        this.emit(message, "warn")
         break
 
       case 500:
-        console.error("Server Error:", message)
-        alert("Something went wrong. Please try again later.")
+        this.emit("Something went wrong. Please try again later.", "error")
         break
 
       default:
-        console.error("API Error:", message)
+        this.emit(message, "error")
     }
-  }
-
-  private static handleGenericError(error: Error) {
-    console.error("App Error:", error.message)
   }
 }

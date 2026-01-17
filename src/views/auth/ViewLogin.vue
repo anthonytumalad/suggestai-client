@@ -1,32 +1,37 @@
 <template>
   <div class="min-h-screen flex py-50 justify-center">
-    <div class="max-w-xs w-full">
+    <div class="max-w-100 w-full">
       <div class="mb-10">
         <AppLogo />
       </div>
+      <AppAlert />
       <form @submit.prevent="submit">
         <div class="space-y-2 mb-2">
           <div class="relative text-sm">
-            <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-border"></i>
-            <input
+            <AppInput
               v-model="form.identity"
-              type="text"
               placeholder="Email or username"
               autocomplete="username"
+              type="text"
               required
-              class="w-full pl-10 py-1.5 bg-white border border-border rounded transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-primary"
             >
+              <template #icon>
+                <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-border"></i>
+              </template>
+            </AppInput>
           </div>
           <div class="relative text-sm">
-            <i class="pi pi-key absolute left-3 top-1/2 -translate-y-1/2 text-border"></i>
-            <input
+            <AppInput
               v-model="form.password"
-              type="password"
               placeholder="Password"
               autocomplete="current-password"
+              type="password"
               required
-              class="w-full pl-10 py-1.5 bg-white border border-border rounded transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-primary"
             >
+              <template #icon>
+                <i class="pi pi-key absolute left-3 top-1/2 -translate-y-1/2 text-border"></i>
+              </template>
+            </AppInput>
           </div>
         </div>
         <a href="#" class="text-sm text-secondary hover:underline">
@@ -47,6 +52,7 @@
 import { ref } from "vue"
 import { UseAuth } from "@/composables/mutations/use.auth"
 import type { LoginCredentials } from "@/types/auth.types"
+import AppInput from "@/components/ui/input/AppInput.vue"
 
 const { login } = UseAuth()
 

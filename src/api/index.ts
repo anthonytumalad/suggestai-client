@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from "axios"
+import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios"
 import { getToken, removeToken } from "@/utils/user.storage"
 import { ErrorHandler } from "@/lib/error.handler"
 
@@ -27,14 +27,9 @@ api.interceptors.request.use(
 )
 
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
-
+  response => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      removeToken()
-      window.location.href = "/auth/login"
-    }
-
+    if (error.response?.status === 401) removeToken()
     ErrorHandler.handle(error)
     return Promise.reject(error)
   }
