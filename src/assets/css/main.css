@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+@import "tailwindcss";
+@import 'primeicons/primeicons.css';
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-brand: "Google Sans", sans-serif;
+  --font-system: "Roboto", sans-serif;
+
+  --color-base: #FCFCFC;
+  --color-fg-base: #293241;
+  --color-fg-base-secondary: #44486D12;
+  --color-surface-base: #FFFFFF;
+
+  --color-primary: #0EA5E9;
+  --color-primary-light: #AEDEFC;
+
+  --color-secondary: #64748B;
+  --color-accent: #F472B6;
+  --color-muted: #94A3B8;
+  --color-border: #E7E7EA;
+  --color-ring: #93C5FD;
+
+  --color-success: #10b981;
+  --color-warning: #FFFDE1;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-brand);
+  background-color: var(--color-surface-base);
+  color: var(--color-fg-base);
+  letter-spacing: 0.25 rem;
+  min-height: 100vh;
+}
