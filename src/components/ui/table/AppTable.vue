@@ -1,117 +1,223 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { shallowRef, computed, watch } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 
-export interface Column<T> {
-  key: keyof T
-  label: string
+export interface TableColumn<T> {
+  field: keyof T
+  header: string
   align?: 'left' | 'center' | 'right'
+  sortable?: boolean
+  format?: (value: T[keyof T]) => string
 }
 
-const props = defineProps<{
-  columns: Column<T>[]
-  rows: T[]
+defineOptions({ name: 'DataTable' })
+
+const props = withDefaults(defineProps<{
+  columns: TableColumn<T>[]
+  items: T[]
   loading?: boolean
-  rowKey?: keyof T
-  selectable?: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'rowClick', row: T): void
-  (e: 'selectionChange', selected: T[]): void
-}>()
-
-const getAlignClass = (align?: Column<T>['align']) => {
-  switch (align) {
-    case 'center':
-      return 'text-center'
-    case 'right':
-      return 'text-right'
-    default:
-      return 'text-left'
-  }
-}
-
-// --- Use shallowRef to avoid reactive proxy wrapping ---
-const selectedRows = shallowRef<Set<T>>(new Set())
-
-// Computed array of selected rows
-const selectedArray = computed<T[]>(() => Array.from(selectedRows.value))
-
-// Select all checkbox state
-const allSelected = computed({
-  get: () => props.rows.length > 0 && selectedRows.value.size === props.rows.length,
-  set: (val: boolean) => {
-    if (val) {
-      selectedRows.value = new Set(props.rows)
-    } else {
-      selectedRows.value.clear()
-    }
-    emit('selectionChange', selectedArray.value)
-  },
+  rowKey?: keyof T | ((item: T) => string | number)
+  pageSize?: number
+  pagination?: boolean
+}>(), {
+  loading: false,
+  pageSize: 10,
+  pagination: true,
+  rowKey: 'id' as keyof T
 })
 
-// Toggle individual row
-const toggleRow = (row: T) => {
-  if (selectedRows.value.has(row)) {
-    selectedRows.value.delete(row)
-  } else {
-    selectedRows.value.add(row)
+const emit = defineEmits<{
+  (e: 'row-click', item: T): void
+  (e: 'selection-change', selected: T[]): void
+}>()
+
+const currentPage = ref(1)
+const sortField = ref<keyof T | null>(null)
+const sortDirection = ref<'asc' | 'desc'>('asc')
+const selectedItems = shallowRef<T[]>([])
+// ────────────────────────────────────────────────
+// Computed
+// ────────────────────────────────────────────────
+
+const sortedItems = computed(() => {
+  if (!sortField.value) return props.items
+
+  return [...props.items].sort((a, b) => {
+    const aVal = a[sortField.value!]
+    const bVal = b[sortField.value!]
+
+    if (aVal === bVal) return 0
+    if (aVal == null) return 1
+    if (bVal == null) return -1
+
+    return sortDirection.value === 'asc'
+      ? aVal < bVal ? -1 : 1
+      : aVal > bVal ? -1 : 1
+  })
+})
+
+const paginatedData = computed(() => {
+  if (!props.pagination) return sortedItems.value
+
+  const start = (currentPage.value - 1) * props.pageSize
+  return sortedItems.value.slice(start, start + props.pageSize)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(props.items.length / props.pageSize)
+})
+
+const startIndex = computed(() => (currentPage.value - 1) * props.pageSize)
+
+const pageNumbers = computed(() => {
+  const pages: number[] = []
+  const maxPages = 7
+  let start = Math.max(1, currentPage.value - 3)
+  const end = Math.min(totalPages.value, start + maxPages - 1)
+
+  if (end - start + 1 < maxPages) {
+    start = Math.max(1, end - maxPages + 1)
   }
-  emit('selectionChange', selectedArray.value)
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+const showPagination = computed(() => props.pagination && props.items.length > props.pageSize)
+
+// ────────────────────────────────────────────────
+// Methods
+// ────────────────────────────────────────────────
+
+const toggleSort = (field: keyof T) => {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  currentPage.value = 1
 }
 
-// Clear selection if rows change
-watch(() => props.rows, () => {
-  selectedRows.value.clear()
+const getRowKey = (item: T): string | number => {
+  if (typeof props.rowKey === 'function') return props.rowKey(item)
+  return String(item[props.rowKey as keyof T] ?? Math.random())
+}
+
+const formatValue = <K extends keyof T>(
+  value: T[K],
+  col: TableColumn<T>
+) => {
+  if (col.format) return col.format(value)
+  if (value == null) return '—'
+  if (typeof value === 'number') return value.toLocaleString()
+  return String(value)
+}
+
+const handleRowClick = (item: T) => {
+  emit('row-click', item)
+}
+
+watch(() => props.items.length, () => {
+  currentPage.value = 1
 })
 </script>
 
 <template>
-  <div class="w-full overflow-x-auto">
-    <table class="w-full border-collapse text-sm">
+  <div class="w-full overflow-x-auto rounded">
+    <table class="w-full min-w-max">
       <!-- Header -->
-      <thead class="bg-base border border-border rounded-sm">
+      <thead class="bg-base border border-border">
         <tr>
-          <th v-if="props.selectable" class="px-4 py-3 text-left">
-            <input type="checkbox" v-model="allSelected" />
+          <th v-for="col in columns" :key="String(col.field)"
+            class="px-4 py-3 text-left text-sm text-secondary tracking-wider" :class="[
+              col.align === 'center' && 'text-center',
+              col.align === 'right' && 'text-right',
+              col.sortable && 'cursor-pointer select-none hover:bg-fg-base-secondary'
+            ]" @click="col.sortable ? toggleSort(col.field) : null">
+            <div class="flex items-center gap-1 justify-between">
+              <span>{{ col.header }}</span>
+              <span v-if="col.sortable" class="text-secondary">
+                <i v-if="sortField === col.field" :class="sortDirection === 'asc'
+                  ? 'pi pi-sort-amount-up'
+                  : 'pi pi-sort-amount-down'" />
+                <i v-else class="pi pi-sort" />
+              </span>
+            </div>
           </th>
-          <th v-for="col in columns" :key="String(col.key)" class="text-left px-4 py-3 font-medium text-secondary"
-            :class="getAlignClass(col.align)">
-            {{ col.label }}
+        </tr>
+
+        <!-- Loading progress bar -->
+        <tr v-if="loading">
+          <th :colspan="columns.length" class="p-0">
+            <div class="h-0.5 w-full overflow-hidden bg-base">
+              <div class="h-full bg-primary animate-loading-bar"></div>
+            </div>
           </th>
         </tr>
       </thead>
 
       <!-- Body -->
-      <tbody>
-        <tr v-if="props.loading">
-          <td :colspan="props.columns.length + (props.selectable ? 1 : 0)" class="px-4 py-6 text-center text-secondary">
-            Loading...
+      <tbody class="bg-white ">
+        <tr v-if="paginatedData.length === 0 && !loading">
+          <td :colspan="columns.length" class="px-6 py-10 text-center text-secondary border-b border-border">
+            No records found
           </td>
         </tr>
 
-        <tr v-else-if="!props.rows.length">
-          <td :colspan="props.columns.length + (props.selectable ? 1 : 0)" class="px-4 py-6 text-center text-secondary">
-            No data available
-          </td>
-        </tr>
-
-        <tr v-else v-for="row in props.rows" :key="props.rowKey ? String(row[props.rowKey]) : JSON.stringify(row)"
-          class="border-b border-border hover:bg-fg-base-secondary cursor-pointer" @click="$emit('rowClick', row)">
-
-          <!-- Row checkbox -->
-          <td v-if="props.selectable" class="px-4 py-3 text-left">
-            <input type="checkbox" :checked="selectedRows.has(row)" @click.stop="toggleRow(row)" />
-          </td>
-
-          <!-- Cells -->
-          <td v-for="col in columns" :key="String(col.key)" class="px-4 py-3" :class="getAlignClass(col.align)">
-            <slot :name="`cell-${String(col.key)}`" :row="row" :value="row[col.key]">
-              {{ row[col.key] }}
+        <tr v-for="item in paginatedData" :key="getRowKey(item)" class="hover:bg-base transition-colors border-b border-border"
+          :class="{ 'bg-blue-50': selectedItems.includes(item) }" @click="handleRowClick(item)">
+          <td v-for="col in columns" :key="String(col.field)" class="px-4 py-3 text-sm whitespace-nowrap">
+            <slot :name="`cell-${String(col.field)}`" :row="item" :value="item[col.field]" :column="col">
+              {{ formatValue(item[col.field], col) }}
             </slot>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    <div
+      v-if="showPagination"
+      class="px-4 py-3 flex items-center justify-between text-sm text-secondary"
+    >
+      <div class="">
+        Showing {{ startIndex + 1 }}–{{ Math.min(startIndex + pageSize, items.length) }} of {{ items.length }}
+      </div>
+
+      <div class="flex gap-1">
+        <button
+          :disabled="currentPage === 1"
+          @click="currentPage = 1"
+          class="px-3 py-1 border border-border rounded hover:bg-base cursor-pointer disabled:opacity-50"
+        >
+          First
+        </button>
+        <button
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+          class="px-3 py-1 border border-border rounded hover:bg-base cursor-pointer disabled:opacity-50"
+        >
+          Prev
+        </button>
+
+        <button
+          v-for="page in pageNumbers"
+          :key="page" :class="[
+          'px-3 cursor-pointer py-1 border border-border rounded min-w-8',
+            page === currentPage ? 'bg-primary text-white' : 'hover:bg-base'
+          ]"
+          @click="currentPage = page"
+        >
+          {{ page }}
+        </button>
+
+        <button :disabled="currentPage === totalPages" @click="currentPage++"
+          class="px-3 py-1 border border-border rounded hover:bg-base cursor-pointer disabled:opacity-50">
+          Next
+        </button>
+      </div>
+    </div>
   </div>
 </template>

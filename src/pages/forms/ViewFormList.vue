@@ -1,30 +1,73 @@
 <script setup lang="ts">
-import AppTable, { type Column } from '@/components/ui/table/AppTable.vue'
+import { ref, computed } from 'vue'
+import { useFormsList } from '@/composables/forms/useFormsList'
+import type { TableColumn } from '@/components/ui/table/AppTable.vue'
 
-interface Product {
-  id: number
-  name: string
-  price: number
-  stock: number
-  category: string
-}
 
-const columns: Column<Product>[] = [
-  { key: 'name', label: 'Product Name' },
-  { key: 'price', label: 'Price', align: 'right' },
-  { key: 'stock', label: 'Stock', align: 'center' },
-  { key: 'category', label: 'Category' },
-]
 
-const products: Product[] = [
-  { id: 1, name: 'Laptop', price: 1200, stock: 15, category: 'Electronics' },
-  { id: 2, name: 'Headphones', price: 200, stock: 50, category: 'Electronics' },
-  { id: 3, name: 'Coffee Mug', price: 15, stock: 100, category: 'Home' },
-  { id: 4, name: 'Notebook', price: 5, stock: 200, category: 'Stationery' },
-  { id: 5, name: 'Chair', price: 85, stock: 25, category: 'Furniture' },
+const { useFormsList } = useForms()
+
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const {
+  data: queryData,
+  isLoading,
+  isFetching,
+  isError,
+  error
+} =     useFormsList
+(currentPage.value, pageSize.value)
+
+const forms = computed<FormItem[]>(() => {
+  return (queryData.value?.data ?? []).map(form => ({
+    id: form.id,
+    title: form.title,
+    suggestions_count: form.suggestions_count ?? 0,
+    is_active: form.is_active
+  }))
+})
+
+
+const columns: TableColumn<FormItem>[] = [
+  { field: 'id', header: 'ID', sortable: true },
+  { field: 'title', header: 'Name', sortable: true },
+  {
+    field: 'suggestions_count',
+    header: 'Total Suggestions',
+    align: 'right',
+    sortable: true,
+    format: (v) => {
+      if (typeof v !== 'number' || v === 0) return '—'
+      return v.toLocaleString('en-PH')
+    }
+  },
+  {
+    field: 'is_active',
+    header: 'Active',
+    align: 'center',
+    format: (v: boolean) => (v ? 'Active' : 'Inactive'),
+  },
 ]
 </script>
 
 <template>
-  <AppTable :columns="columns" :rows="products" row-key="id" selectable />
+  <div class="flex flex-col space-y-4">
+    <div class="flex items-center justify-between">
+      <AppInput placeholder="Search" type="text">
+        <template #icon>
+          <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-border"></i>
+        </template>
+      </AppInput>
+      <AppButton label="New form" icon="pi pi-plus" variant="primary" size="sm" iconSize="sm" />
+    </div>
+    <AppTable
+      :columns="columns"
+      :items="forms"
+      :loading="isLoading || isFetching"
+      :error="isError ? (error?.message || 'Failed to load forms'): null"
+      pagination
+      :page-size="7"
+    />
+  </div>
 </template>

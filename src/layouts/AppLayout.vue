@@ -16,6 +16,21 @@ const toggleCollapse = () => {
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
 }
+
+const routeTitles: Record<string, string> = {
+  dashboard: 'Dashboard',
+  'forms-list': 'Forms',
+  reports: 'Reports',
+  trash: 'Trash',
+  profile: 'Profile'
+}
+
+const currentRouteTitle = computed(() => {
+  if (route.name && routeTitles[route.name.toString()]) {
+    return routeTitles[route.name.toString()]
+  }
+  return 'Page'
+})
 </script>
 
 <template>
@@ -23,14 +38,8 @@ const toggleSidebar = () => {
     <AppSidebar
       v-if="!isGuestPage"
       :collapsed="collapsed"
-      :class="{
-        'hidden lg:block': !sidebarOpen && !collapsed,
-        'lg:w-20': collapsed,
-        'lg:w-64': !collapsed,
-        'fixed inset-y-0 left-0 z-50 lg:static lg:z-auto': true,
-        'translate-x-0': sidebarOpen || collapsed,
-        '-translate-x-full': !sidebarOpen && !collapsed
-      }"
+      class="fixed top-0 left-0 h-screen z-50 transition-all duration-300"
+      :class="collapsed ? 'w-20' : 'w-64'"
       @close="sidebarOpen = false"
     />
     <div
@@ -39,10 +48,13 @@ const toggleSidebar = () => {
       @click="sidebarOpen = false"
     />
 
-    <div class="flex flex-1 flex-col">
+    <div
+      class="flex flex-1 flex-col"
+      :class="{'ml-64': !collapsed, 'ml-20': collapsed}"
+    >
       <header
         v-if="!isGuestPage"
-        class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-base px-4"
+        class="fixed top-0 w-full z-40 h-14 border-b border-border px-4 flex items-center gap-4 transition-all duration-300"
       >
         <button
           class="lg:hidden text-secondary hover:text-primary focus:outline-none"
@@ -53,7 +65,7 @@ const toggleSidebar = () => {
 
         <button
           v-if="sidebarOpen || collapsed"
-          class="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-fg-base-secondary text-secondary hover:text-primary"
+          class="hidden lg:flex items-center cursor-pointer justify-center w-8 h-8 rounded-full hover:bg-fg-base-secondary text-secondary hover:text-fg-base"
           @click="toggleCollapse"
         >
           <i
@@ -61,11 +73,11 @@ const toggleSidebar = () => {
             :class="collapsed ? 'pi-angle-right' : 'pi-angle-left'"
           />
         </button>
-        <div class="flex items-center gap-3">
-          <!-- Add avatar, notifications, etc. later -->
-        </div>
+        <span class="text-[16px] font-medium">
+          {{ currentRouteTitle }}
+        </span>
       </header>
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 overflow-auto mt-14">
         <router-view />
       </main>
     </div>
