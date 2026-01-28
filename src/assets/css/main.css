@@ -41,3 +41,17 @@ body {
   letter-spacing: 0.25 rem;
   min-height: 100vh;
 }
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-loading-bar {
+  width: 40%;
+  animation: loading-bar 1.2s ease-in-out infinite;
+}

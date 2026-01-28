@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from "vue"
-import { useAuth } from "@/composables/mutations/useAuth"
+import { useComposables } from '@/composables/useComposables'
 import type { LoginCredentials } from "@/types/types"
 
+const { useAuth } = useComposables()
 const { login } = useAuth()
 
 const form = ref<LoginCredentials>({
